@@ -1,5 +1,7 @@
 import sys
 import os
+import tkinter as tk
+import zlib
 
 def read_args(argv):
     output = {}
@@ -32,33 +34,69 @@ def read_type_file(data):
         return None
 
 def binary_to_png(data):
-    width = int.from_bytes(data[16:20], 'big')
-    height = int.from_bytes(data[20:24], 'big')
-    color_depth = data[24]
+    width = height = depth = color_type = compression_method = interlace_method = None
+    IDAT_data = []
 
-    offset = 33
-    img = bytearray()
+    offset = 8
     while offset < len(data):
-        length = int.from_bytes(data[offset:offset + 4], 'big')
+        chunk_length = int.from_bytes(data[offset:offset + 4], 'big')
         chunk_type = data[offset + 4: offset + 8]
-        if chunk_type == b'IDAT':
-            img.extend(data[offset + 8:offset + 8 + length])
-        offset += 12 + length
+
+        offset += 8
+
+        if chunk_type == b'IHDR':
+            width = int.from_bytes(data[offset:offset + 4], 'big')
+            height = int.from_bytes(data[offset + 4:offset + 8], 'big')
+            depth = data[offset + 8]
+            color_type = data[offset + 9]
+            compression_method = data[offset + 10]
+            interlace_method = data[offset + 11]
+        elif chunk_type == b'IDAT':
+            IDAT_data.extend(data[offset:offset + chunk_length])
+        elif chunk_type == b'IEND':
+            break
+        else:
+            print('Unknown chunk type: {chunk_type}')
+        
+        offset += chunk_length + 4
+
+    bytes_data = bytes(IDAT_data)
+    decompressed_data = zlib.decompress(bytes_data)
 
     img_matrix = []
     offset = 0
     for row in range(height):
-        row_pixel = []
+        row_pixels = []
+        offset += 1
         for col in range(width):
-            if color_depth == 8 and len(img) >= offset + 3:
-                r = img[offset]
-                g = img[offset + 1]
-                b = img[offset + 2]
-                row_pixel.append((r,g,b))
-                offset += 3
-        img_matrix.append(row_pixel)
-    
+            r = decompressed_data[offset]
+            g = decompressed_data[offset + 1]
+            b = decompressed_data[offset + 2]
+            row_pixels.append((r, g, b))
+        img_matrix.append(row_pixels)
+
     return img_matrix
+
+def display_rgb_matrix(data):
+    tk_root = tk.Tk()
+    width = len(data[0])
+    height = len(data)
+
+    img = tk.PhotoImage(width=width, height=height)
+    color_data = []
+    for y in range(height):
+        row = []
+        if(len(data[y]) == width):
+            for x in range(width):
+                r, g, b = data[y][x]
+                color_hex = f'#{r:02x}{g:02x}{b:02x}'
+                row.append(color_hex)
+            color_data.append("{" + " ".join(row) + "}")
+    img.put(" ".join(color_data))
+
+    tk_lbl = tk.Label(tk_root, image=img)
+    tk_lbl.pack()
+    tk_root.mainloop()
 
 def main():
     args = read_args(sys.argv)
@@ -74,6 +112,7 @@ def main():
         filetype = read_type_file(binary_data)
         if(filetype == 'png'):
             img_matrix = binary_to_png(binary_data)
+            display_rgb_matrix(img_matrix)
             print(img_matrix)
     
 if __name__ == '__main__':
