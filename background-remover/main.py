@@ -72,6 +72,7 @@ def binary_to_png(data):
             g = decompressed_data[offset + 1]
             b = decompressed_data[offset + 2]
             row_pixels.append((r, g, b))
+            offset += 3
         img_matrix.append(row_pixels)
 
     return img_matrix
