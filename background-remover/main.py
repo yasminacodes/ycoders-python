@@ -35,7 +35,7 @@ def read_type_file(data):
 
 def binary_to_png(data):
     width = height = depth = color_type = compression_method = interlace_method = None
-    IDAT_data = []
+    IDAT_data = bytearray()
 
     offset = 8
     while offset < len(data):
@@ -60,8 +60,7 @@ def binary_to_png(data):
         
         offset += chunk_length + 4
 
-    bytes_data = bytes(IDAT_data)
-    decompressed_data = zlib.decompress(bytes_data)
+    decompressed_data = zlib.decompress(IDAT_data)
 
     img_matrix = []
     offset = 0
