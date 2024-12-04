@@ -1,7 +1,8 @@
 import sys
 import os
 import tkinter as tk
-import zlib
+#import zlib
+from modules.Inflate import inflate_decompress
 
 def read_args(argv):
     output = {}
@@ -60,7 +61,8 @@ def binary_to_png(data):
         
         offset += chunk_length + 4
 
-    decompressed_data = zlib.decompress(IDAT_data)
+    #decompressed_data = zlib.decompress(IDAT_data)
+    decompressed_data = inflate_decompress(IDAT_data)
 
     img_matrix = []
     offset = 0
